@@ -30,6 +30,7 @@ Install development dependencies:
   - https://pickledlight.blogspot.com/p/commodore-64-guides.html
   - https://theweb.dk/KickAssembler/KickAssembler.pdf
   - https://vice-emu.sourceforge.io/vice_toc.html
+  - https://www.c64-wiki.com/wiki/Memory_Map
 - TEA
   - https://en.wikipedia.org/wiki/Tiny_Encryption_Algorithm
   - https://tayloredge.com/reference/Mathematics/TEA-XTEA.pdf

@@ -1,7 +1,9 @@
 @ECHO OFF
 @REM Compile source and run in emulator
 
-SET REPO_DIR="%CD%"
+@REM Get repo directory based on this script's path
+SET "REPO_DIR=%~dp0"
+IF "%REPO_DIR:~-1%" == "\" SET "REPO_DIR=%REPO_DIR:~0,-1%"
 
 SET KICKASS="D:/programs/KickAssembler/kickass.jar"
 

@@ -1,0 +1,6 @@
+tmp/
+
+*.sym
+
+learn/tea-c/tea
+learn/**/*.prg

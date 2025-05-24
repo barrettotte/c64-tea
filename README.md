@@ -15,8 +15,46 @@ assembly when I get the chance and LARP as a 1980s developer.
 Install development dependencies:
 - Windows
 - Java 11+
+- Python 3+
 - https://theweb.dk/KickAssembler/Main.html#frontpage
 - https://vice-emu.sourceforge.io/
+
+Examples of TEA in C and simple BASIC/ASM programs can be found in [./learn/](./learn/).
+
+### Debug PRG Loading
+
+```txt
+# Verify PRGs loading correctly from D64
+
+LOAD "TEABAS",8
+LIST 10-50
+
+LOAD "TEAASM",8,1
+LIST 10-50
+
+# monitor: verify assembly prg loaded correctly
+m c000 c01f
+
+# monitor: verify basic prg loaded correctly
+m 0801 081f
+
+# check BASIC pointers
+#   $2B-$2C start of BASIC (01 08)
+#   $2D-$2E start of vars (VARTAB), should point right after TEAMAIN
+#   $2F-$30 start of arrays
+#   $31-$32 end of arrays
+m 2b 32
+```
+
+### Running with D64 File
+
+In BASIC kernel run:
+
+```txt
+LOAD "TEABAS",8
+LOAD "TEAASM",8,1
+RUN
+```
 
 ## References
 

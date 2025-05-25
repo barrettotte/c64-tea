@@ -168,6 +168,11 @@ def main():
         write_d64(d64, prgs)
         list_d64(d64)
         vice_args += ['-8', str(d64)]
+
+        # run with
+        # LOAD "TEABAS",8
+        # LOAD "TEAASM",8,1
+        # RUN
     else:
         # single prg approach
         combine_prg(prgs, OUTPUT_PRG)

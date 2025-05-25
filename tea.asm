@@ -58,7 +58,7 @@
     .const __addr = address
 
     ldx #0               // start at LSB
-_print32_loop:           // loop over all bytes
+!_print32_loop:          // loop over all bytes
     lda __addr, x        // load current byte
     pha                  // save byte to stack for low nibble
 
@@ -79,16 +79,7 @@ _print32_loop:           // loop over all bytes
 
     inx                  // x++ (toward MSB)
     cpx #4
-    bne _print32_loop    // loop until all four bytes printed
-}
-
-// set 32-bit value to zero: dest = 0
-.macro zero32(dest) {
-    lda #0
-    sta dest
-    sta dest+1
-    sta dest+2
-    sta dest+3
+    bne !_print32_loop-  // loop until all four bytes printed
 }
 
 // copy 32-bit value from src to dest: dest = src
@@ -178,12 +169,16 @@ _print32_loop:           // loop over all bytes
 // ==========================================================
 
 start:                         // entry point
-        jsr load_data          // load v0-v1, k0-k3 into zero page
-        zero32(TMP0)           // tmp0 = 0
-        zero32(TMP1)           // tmp1 = 0
+        lda #0
+        tax
+        tay
 
-        print32(BAS_DATA)
-        print_cr()
+        jsr load_data          // load v0-v1, k0-k3 into zero page
+
+        // print32(V0)
+        // print_cr()
+        // print32(V1)
+        // print_cr()
 
         lda BAS_MODE           // load mode
         sta MODE               // store mode
@@ -259,7 +254,11 @@ decrypt_next:                  // loop done, go to done
 
 encrypt:
         // init encrypt
-        zero32(SUM)            // sum = 0
+        lda #0
+        sta SUM
+        sta SUM+1
+        sta SUM+2
+        sta SUM+3
         lda #ROUNDS            // get rounds
         sta ROUND_COUNT        // init round counter
 encrypt_loop:                  // encrypt multiple rounds
@@ -315,6 +314,8 @@ encrypt_next:
 
 done:                          // finished, get back to BASIC
         jsr store_data         // store data for BASIC to access
+        // print32(BAS_DATA)
+        // print_cr()
         rts                    // return to BASIC
 
 // ==========================================================
@@ -331,6 +332,7 @@ load_loop:
         inx             // x++
         cpx #8          // get first 8 bytes of each
         bne load_loop   // while x != 8
+
         ldx #8          // x = 8
 load_loop2:
         lda BAS_KEY, x  // load rest of key

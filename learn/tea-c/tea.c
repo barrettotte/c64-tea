@@ -84,6 +84,41 @@ void decrypt (uint32_t v[2], const uint32_t k[4]) {
     v[1] = v1;
 }
 
+void encrypt_message(const char* message, const uint32_t key[4], uint8_t** out, size_t* out_len) {
+    size_t msg_len = strlen(message);
+    size_t blocks = (msg_len + 7) / 8;  // round up to next multiple of 8
+    size_t padded_len = blocks * 8;
+
+    uint8_t* encrypted = malloc(padded_len);
+    memset(encrypted, 0, padded_len);  // pad with 0s
+
+    for (size_t i = 0; i < blocks; i++) {
+        uint32_t v[2] = {0, 0};
+        memcpy(&v, message + i * 8, msg_len - i * 8 >= 8 ? 8 : msg_len - i * 8);
+        encrypt(v, key);
+        memcpy(encrypted + i * 8, v, 8);
+    }
+
+    *out = encrypted;
+    *out_len = padded_len;
+}
+
+void decrypt_message(const uint8_t* ciphertext, size_t length, const uint32_t key[4], char** out) {
+    size_t blocks = length / 8;
+    char* decrypted = malloc(length + 1);  // +1 for null terminator
+    memset(decrypted, 0, length + 1);
+
+    for (size_t i = 0; i < blocks; i++) {
+        uint32_t v[2];
+        memcpy(&v, ciphertext + i * 8, 8);
+        decrypt(v, key);
+        memcpy(decrypted + i * 8, &v, 8);
+    }
+
+    decrypted[length] = '\0';
+    *out = decrypted;
+}
+
 // convert hex string to bytes
 void hexstr_to_bytes(const char* hex, uint8_t* out) {
     // read 2 hex chars at a time, convert to uint8_t
@@ -92,50 +127,82 @@ void hexstr_to_bytes(const char* hex, uint8_t* out) {
     }
 }
 
+// convert bytes to hex string
+char* bytes_to_hexstr(const uint8_t* bytes, size_t len) {
+    if (len == 0) {
+        return NULL;
+    }
+    // 3 chars per byte: 2 for hex, 1 for space, -1 for no space after last byte
+    char* hexstr = malloc(len * 3);  // len * 2 + (len - 1) + 1 for null terminator
+    if (!hexstr) {
+        return NULL;
+    }
+    for (size_t i = 0; i < len; i++) {
+        if (i < len - 1) {
+            sprintf(hexstr + i * 3, "%02X ", bytes[i]);
+        } else {
+            sprintf(hexstr + i * 3, "%02X", bytes[i]);
+        }
+    }
+    return hexstr;
+}
+
 int main() {
     // ========================================
     // test encrypt message, then decrypt
     // ========================================
 
     const char* keyString = "0123456789ABCDEF";
-    const char* message = "HELLO";
+    const char* message = "HELLO WORLD";
 
     // convert key string to 128-bit key (32 * 4)
     uint32_t key[4];
     memcpy(key, keyString, 16);
 
-    // pad message to 8 bytes (64-bit) and convert to two 32-bit
-    char block[8] = {0};
-    strncpy(block, message, 8);
-    uint32_t v[2];
-    memcpy(v, block, 8);
+    printf("Original message: %s\n", message);
 
-    printf("Original message: %s\n", block);
+    uint8_t* encrypted = NULL;
+    size_t encrypted_len = 0;
+    encrypt_message(message, key, &encrypted, &encrypted_len);
 
-    encrypt(v, key);
     printf("Encrypted hex:\n");
-    print_hex_bytes(v); // 9C 69 1C 84 62 5A F8 B7
+    for (size_t i = 0; i < encrypted_len; i++) {
+        printf("%02X ", encrypted[i]);
+    }
+    printf("\n");
 
-    decrypt(v, key);
-    memcpy(block, v, 8);
-    block[7] = '\0';
-    printf("Decrypted message: %s\n", block);
+    char* decrypted = NULL;
+    decrypt_message(encrypted, encrypted_len, key, &decrypted);
+    printf("Decrypted message: %s\n", decrypted);
+
+    free(encrypted);
+    free(decrypted);
 
     // ========================================
     // test decrypting from hex string input
     // ========================================
 
-    const char* hexStr = "9C691C84625AF8B7"; // HELLO encrypted
-    uint32_t v2[2];
-    hexstr_to_bytes(hexStr, (uint8_t*) v2);
+    const char* hexStr = "0808EB296B8B7A4BFC2D02629C4F1E82"; // "HELLO WORLD" encrypted
+    size_t hexLen = strlen(hexStr);
+    size_t byteLen = hexLen / 2;
+
+    uint8_t* encryptedHex = malloc(byteLen);
+    for (size_t i = 0; i < byteLen; i++) {
+        sscanf(hexStr + 2 * i, "%2hhX", &encryptedHex[i]);
+    }
 
     printf("\nDecrypting hex: %s\n", hexStr);
-    decrypt(v2, key);
 
-    char out[9] = {0};
-    memcpy(out, v2, 8);
-    out[8] = '\0';
-    printf("Decrypted hex: %s\n", out);
+    // Decrypt the message using helper
+    char* decryptedHex = NULL;
+    decrypt_message(encryptedHex, byteLen, key, &decryptedHex);
+    printf("Decrypted: %s\n", decryptedHex);
+
+    char* hexOut = bytes_to_hexstr((uint8_t*) decryptedHex, encrypted_len);
+    printf("Decrypted as hex: %s\n", hexOut);
+
+    free(encryptedHex);
+    free(decryptedHex);
 
     return 0;
 }

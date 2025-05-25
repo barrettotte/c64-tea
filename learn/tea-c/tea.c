@@ -1,133 +1,139 @@
-// C test program for understanding TEA
-// gcc -o tea tea.c
+// Working through TEA to help port to 6502 assembly
+// https://en.wikipedia.org/wiki/Tiny_Encryption_Algorithm
+//
+// gcc -o tea tea.c && ./tea
 
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define DELTA 0x9E3779B9 // key schedule number -> 2^(32)/phi, where phi is golden ratio
-#define TEA_ROUNDS 32
+#define ROUNDS 32
 
-// TEA encrypt block of data using given key.
-void encrypt(uint32_t v[2], const uint32_t k[4]) {
+#define DELTA     0x9E3779B9 // key schedule constant
+#define DSUM_INIT 0xC6EF3720 // (DELTA << 5) & 0xFFFFFFFF
+
+// TEA encrypt
+void encrypt (uint32_t v[2], const uint32_t k[4]) {
     uint32_t sum = 0;
-    for (int i = 0; i < TEA_ROUNDS; i++) {
+    uint32_t v0 = v[0], v1 = v[1];
+    uint32_t vtmp0 = 0, vtmp1 = 0;
+    uint32_t k0 = k[0], k1 = k[1], k2 = k[2], k3 = k[3]; // cache key
+
+    for (uint32_t i = 0; i < ROUNDS; i++) {
         sum += DELTA;
-        v[0] += ((v[1] << 4 ^ v[1] >> 5) + v[1]) ^ (sum + k[sum & 3]);
-        v[1] += ((v[0] << 4 ^ v[0] >> 5) + v[0]) ^ (sum + k[(sum >> 11) & 3]);
+        
+        // part 1
+        // v0 += ((v1<<4) + k0) ^ (v1 + sum) ^ ((v1>>5) + k1);
+        vtmp0 = v1 << 4;
+        vtmp0 = vtmp0 + k0;
+        vtmp0 = vtmp0 ^ (v1 + sum);
+        vtmp0 = vtmp0 ^ ((v1 >> 5) + k1);
+        v0 += vtmp0;
+
+        // part 2
+        // v1 += ((v0<<4) + k2) ^ (v0 + sum) ^ ((v0>>5) + k3);
+        vtmp1 = v0 << 4;
+        vtmp1 = vtmp1 + k2;
+        vtmp1 = vtmp1 ^ (v0 + sum);
+        vtmp1 = vtmp1 ^ ((v0 >> 5) + k3);
+        v1 += vtmp1;
     }
+    v[0] = v0; 
+    v[1] = v1;
 }
 
-// TEA decrypt block of data using given key.
-void decrypt(uint32_t v[2], const uint32_t k[4]) {
-    uint32_t sum = DELTA * TEA_ROUNDS;
-    for (int i = 0; i < TEA_ROUNDS; i++) {
-        v[1] -= ((v[0] << 4 ^ v[0] >> 5) + v[0]) ^ (sum + k[(sum >> 11) & 3]);
-        v[0] -= ((v[1] << 4 ^ v[1] >> 5) + v[1]) ^ (sum + k[sum & 3]);
+// TEA decrypt
+void decrypt (uint32_t v[2], const uint32_t k[4]) {
+    uint32_t sum = DSUM_INIT;
+    uint32_t v0 = v[0], v1 = v[1];
+    uint32_t vtmp0 = 0, vtmp1 = 0;
+    uint32_t k0 = k[0], k1 = k[1], k2 = k[2], k3 = k[3]; // cache key
+
+    for (uint32_t i = 0; i < ROUNDS; i++) {
+        // part 1
+        // v1 -= ((v0<<4) + k2) ^ (v0 + sum) ^ ((v0>>5) + k3);
+        vtmp1 = v0 << 4;
+        vtmp1 = vtmp1 + k2;
+        vtmp1 = vtmp1 ^ (v0 + sum);
+        vtmp1 = vtmp1 ^ ((v0 >> 5) + k3);
+        v1 -= vtmp1;
+
+        // part 2
+        // v0 -= ((v1<<4) + k0) ^ (v1 + sum) ^ ((v1>>5) + k1);
+        vtmp0 = v1 << 4;
+        vtmp0 = vtmp0 + k0;
+        vtmp0 = vtmp0 ^ (v1 + sum);
+        vtmp0 = vtmp0 ^ ((v1 >> 5) + k1);
+        v0 -= vtmp0;
+
         sum -= DELTA;
     }
+    v[0] = v0;
+    v[1] = v1;
 }
 
-// Pad string to multiple of 8 bytes
-size_t pad(uint8_t* dest, const char* src) {
-    size_t len = strlen(src);
-    size_t pad_len = ((len + 7) / 8) * 8;
-    memcpy(dest, src, len);
-
-    for (size_t i = len; i < pad_len; i++) {
-        dest[i] = 0; // zero pad
+// print hex output 8 bytes
+void print_hex_bytes(uint32_t v[2]) {
+    uint8_t *bytes = (uint8_t*) v;
+    for (int i = 0; i < 8; i++) {
+        printf("%02X ", bytes[i]);
     }
-    return pad_len;
+    printf("\n");
 }
 
-// Parse 32 char hex string to 128-bit key
-int parse_key(const char* hex, uint32_t key[4]) {
-    if (strlen(hex) != 32) {
-        return 0;
+// convert hex string to bytes
+void hexstr_to_bytes(const char* hex, uint8_t* out) {
+    // read 2 hex chars at a time, convert to uint8_t
+    for (int i = 0; i < 8; i++) {
+        sscanf(hex + 2 * i, "%2hhX", &out[i]);
     }
-    for (int i = 0; i < 4; i++) {
-        char chunk[9] = {0};
-        memcpy(chunk, &hex[i * 8], 8);
-
-        if (strspn(chunk, "0123456789ABCDEFabcdef") != 8) {
-            return 0;
-        }
-        key[i] = (uint32_t) strtoul(chunk, NULL, 16);
-    }
-    return 1;
-}
-
-// flush any extra data in stdin
-void flush_stdin() {
-    int c;
-    while ((c = getchar()) != '\n' && c != EOF);
 }
 
 int main() {
-    char key_hex[33]; // ex: A56BABCD00000000FFFFFFFF12345678
+    // ========================================
+    // test encrypt message, then decrypt
+    // ========================================
+
+    const char* keyString = "0123456789ABCDEF";
+    const char* message = "HELLO";
+
+    // convert key string to 128-bit key (32 * 4)
     uint32_t key[4];
-    char input[256];
-    uint8_t buffer[256], decrypted[256];
+    memcpy(key, keyString, 16);
+
+    // pad message to 8 bytes (64-bit) and convert to two 32-bit
+    char block[8] = {0};
+    strncpy(block, message, 8);
     uint32_t v[2];
+    memcpy(v, block, 8);
 
-    // get encryption key
+    printf("Original message: %s\n", block);
 
-    printf("Enter 128-bit key as 32 hex digits (without leading 0x): ");
-    if (!fgets(key_hex, sizeof(key_hex), stdin)) {
-        fprintf(stderr, "Failed to read key.\n");
-        return 1;
-    }
-    
-    key_hex[strcspn(key_hex, "\n")] = '\0';
-    flush_stdin();
-    if (!parse_key(key_hex, key)) {
-        fprintf(stderr, "Invalid key. Must be 32 hex digits.\n");
-        return 1;
-    }
+    printf("Encrypted hex:\n");
+    encrypt(v, key);
+    print_hex_bytes(v); // 9C 69 1C 84 62 5A F8 B7
 
-    // get string to encrypt/decrypt
+    decrypt(v, key);
+    memcpy(block, v, 8);
+    block[7] = '\0';
+    printf("Decrypted message: %s\n", block);
 
-    printf("Enter string to encrypt (max 255 chars): ");
-    if (!fgets(input, sizeof(input), stdin)) {
-        fprintf(stderr, "Error reading input.\n");
-        return 1;
-    }
+    // ========================================
+    // test decrypting from hex string input
+    // ========================================
 
-    input[strcspn(input, "\n")] = '\0';
-    size_t len = pad(buffer, input);
+    const char* hexStr = "9C691C84625AF8B7"; // HELLO encrypted
+    uint32_t v2[2];
+    hexstr_to_bytes(hexStr, (uint8_t*) v2);
 
-    printf("Padded byte(s):\n    ");
-    for (size_t i = 0; i < len; i++) {
-        printf("%02X ", buffer[i]);
-        if ((i + 1) % 8 == 0) {
-            printf("\n    ");
-        }
-    }
-    printf("\n");
+    printf("\nDecrypting hex: %s\n", hexStr);
+    decrypt(v2, key);
 
-    printf("Encrypted block(s):\n");
-    for (size_t i = 0; i < len; i += 8) {
-        memcpy(&v[0], &buffer[i], 4);
-        memcpy(&v[1], &buffer[i + 4], 4);
-        encrypt(v, key);
-
-        memcpy(&buffer[i], &v[0], 4);
-        memcpy(&buffer[i + 4], &v[1], 4);
-        printf("    %08X %08X\n", v[0], v[1]);
-    }
-    printf("\n");
-
-    for (size_t i = 0; i < len; i += 8) {
-        memcpy(&v[0], &buffer[i], 4);
-        memcpy(&v[1], &buffer[i + 4], 4);
-        decrypt(v, key);
-
-        memcpy(&decrypted[i], &v[0], 4);
-        memcpy(&decrypted[i + 4], &v[1], 4);
-    }
-    decrypted[len] = '\0';
-    printf("Decrypted: %s\n", decrypted);
+    char out[9] = {0};
+    memcpy(out, v2, 8);
+    out[8] = '\0';
+    printf("Decrypted hex: %s\n", out);
 
     return 0;
 }

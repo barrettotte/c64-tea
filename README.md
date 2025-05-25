@@ -18,6 +18,9 @@ Install development dependencies:
 - Python 3+
 - https://theweb.dk/KickAssembler/Main.html#frontpage
 - https://vice-emu.sourceforge.io/
+- VS Code Extensions
+  - 6502 Asm highlighting - https://marketplace.visualstudio.com/items?itemName=CaptainJiNX.kickass-c64
+  - BASIC highlighting - https://marketplace.visualstudio.com/items?itemName=Tandy.color-basic
 
 Examples of TEA in C and simple BASIC/ASM programs can be found in [./learn/](./learn/).
 
@@ -69,6 +72,7 @@ RUN
   - https://theweb.dk/KickAssembler/KickAssembler.pdf
   - https://vice-emu.sourceforge.io/vice_toc.html
   - https://www.c64-wiki.com/wiki/Memory_Map
+  - https://www.masswerk.at/6502/6502_instruction_set.html
 - TEA
   - https://en.wikipedia.org/wiki/Tiny_Encryption_Algorithm
   - https://tayloredge.com/reference/Mathematics/TEA-XTEA.pdf

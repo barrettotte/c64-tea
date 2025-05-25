@@ -13,6 +13,15 @@
 #define DELTA     0x9E3779B9 // key schedule constant
 #define DSUM_INIT 0xC6EF3720 // (DELTA << 5) & 0xFFFFFFFF
 
+// print hex output 8 bytes
+void print_hex_bytes(uint32_t v[2]) {
+    uint8_t *bytes = (uint8_t*) v;
+    for (int i = 0; i < 8; i++) {
+        printf("%02X ", bytes[i]);
+    }
+    printf("\n");
+}
+
 // TEA encrypt
 void encrypt (uint32_t v[2], const uint32_t k[4]) {
     uint32_t sum = 0;
@@ -25,7 +34,8 @@ void encrypt (uint32_t v[2], const uint32_t k[4]) {
         
         // part 1
         // v0 += ((v1<<4) + k0) ^ (v1 + sum) ^ ((v1>>5) + k1);
-        vtmp0 = v1 << 4;
+        vtmp0 = v1;
+        vtmp0 = vtmp0 << 4;
         vtmp0 = vtmp0 + k0;
         vtmp0 = vtmp0 ^ (v1 + sum);
         vtmp0 = vtmp0 ^ ((v1 >> 5) + k1);
@@ -33,7 +43,8 @@ void encrypt (uint32_t v[2], const uint32_t k[4]) {
 
         // part 2
         // v1 += ((v0<<4) + k2) ^ (v0 + sum) ^ ((v0>>5) + k3);
-        vtmp1 = v0 << 4;
+        vtmp1 = v0;
+        vtmp1 = vtmp1 << 4;
         vtmp1 = vtmp1 + k2;
         vtmp1 = vtmp1 ^ (v0 + sum);
         vtmp1 = vtmp1 ^ ((v0 >> 5) + k3);
@@ -73,15 +84,6 @@ void decrypt (uint32_t v[2], const uint32_t k[4]) {
     v[1] = v1;
 }
 
-// print hex output 8 bytes
-void print_hex_bytes(uint32_t v[2]) {
-    uint8_t *bytes = (uint8_t*) v;
-    for (int i = 0; i < 8; i++) {
-        printf("%02X ", bytes[i]);
-    }
-    printf("\n");
-}
-
 // convert hex string to bytes
 void hexstr_to_bytes(const char* hex, uint8_t* out) {
     // read 2 hex chars at a time, convert to uint8_t
@@ -110,8 +112,8 @@ int main() {
 
     printf("Original message: %s\n", block);
 
-    printf("Encrypted hex:\n");
     encrypt(v, key);
+    printf("Encrypted hex:\n");
     print_hex_bytes(v); // 9C 69 1C 84 62 5A F8 B7
 
     decrypt(v, key);

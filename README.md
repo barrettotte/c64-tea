@@ -10,6 +10,24 @@ The BASIC is just the user interface and the 6502 assembly is for all the heavy 
 Technically I could have compiled a C implementation to the 6502 architecture, but I like to mess around with
 assembly when I get the chance and LARP as a 1980s developer.
 
+## Running
+
+`python build.py`
+
+This does the following
+- compiles `tea.bas` to `build/tea.bas.prg` using petcat
+- compiles `tea.asm` to `build/tea.asm.prg` using kickassembler
+- combines `tea.bas.prg` and `tea.asm.prg` into `tea.prg`
+- launches VICE emulator with `tea.prg`
+
+### Encryption
+
+![./docs/encrypt.png](./docs/encrypt.png)
+
+### Decryption
+
+![./docs/decrypt.png](./docs/decrypt.png)
+
 ## Development
 
 Install development dependencies:
@@ -47,16 +65,6 @@ m 0801 081f
 #   $2F-$30 start of arrays
 #   $31-$32 end of arrays
 m 2b 32
-```
-
-### Running with D64 File
-
-In BASIC kernel run:
-
-```txt
-LOAD "TEABAS",8
-LOAD "TEAASM",8,1
-RUN
 ```
 
 ## References
